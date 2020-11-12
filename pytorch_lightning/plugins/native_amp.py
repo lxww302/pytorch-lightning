@@ -31,7 +31,8 @@ class NativeAMPPlugin(PrecisionPlugin):
         return model, optimizers
 
     def backward(self, closure_loss, optimizer, opt_idx, *args, **kwargs):
-        closure_loss = self.trainer.scaler.scale(closure_loss)
+        with self.trainer.profiler.profile("scale loss"):
+            closure_loss = self.trainer.scaler.scale(closure_loss)
 
         automatic_optimization = self.trainer.train_loop.automatic_optimization
 
@@ -44,10 +45,10 @@ class NativeAMPPlugin(PrecisionPlugin):
 
         # once backward has been applied, release graph
         closure_loss = closure_loss.detach()
-
-        # unscale gradient to allow analyze within `on_after_backward`
-        if not self.trainer.train_loop.should_accumulate() and automatic_optimization:
-            self.trainer.scaler.unscale_(optimizer)
+        with self.trainer.profiler.profile("unscale loss"):
+            # unscale gradient to allow analyze within `on_after_backward`
+            if not self.trainer.train_loop.should_accumulate() and automatic_optimization:
+                self.trainer.scaler.unscale_(optimizer)
 
         return closure_loss
 

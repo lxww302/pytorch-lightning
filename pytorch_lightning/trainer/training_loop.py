@@ -767,7 +767,8 @@ class TrainLoop:
         wrap the forward step in a closure so second order methods work
         """
         # lightning module hook
-        result = self.training_step(split_batch, batch_idx, opt_idx, hiddens)
+        with self.trainer.profiler.profile("actual training step"):
+            result = self.training_step(split_batch, batch_idx, opt_idx, hiddens)
         self._curr_step_result = result
 
         if result is None:
@@ -779,14 +780,15 @@ class TrainLoop:
             with self.trainer.profiler.profile("model_backward"):
                 self.backward(result, optimizer, opt_idx)
 
-            # hook - call this hook only
-            # when gradients have finished to accumulate
-            if not self.should_accumulate():
-                self.on_after_backward(result.training_step_output, batch_idx, result.loss)
+            with self.trainer.profiler.profile("model_backward_after"):
+                # hook - call this hook only
+                # when gradients have finished to accumulate
+                if not self.should_accumulate():
+                    self.on_after_backward(result.training_step_output, batch_idx, result.loss)
 
-            # check if loss or model weights are nan
-            if self.trainer.terminate_on_nan:
-                self.trainer.detect_nan_tensors(result.loss)
+                # check if loss or model weights are nan
+                if self.trainer.terminate_on_nan:
+                    self.trainer.detect_nan_tensors(result.loss)
 
         return result
 

@@ -1276,8 +1276,10 @@ class LightningModule(
         elif self.trainer.amp_backend == AMPType.NATIVE:
             # native amp does not yet support closures.
             # TODO: pass the closure to the step ASAP
-            optimizer_closure()
-            self.trainer.scaler.step(optimizer)
+            with self.trainer.profiler.profile("optimizer_closure"):
+                optimizer_closure()
+            with self.trainer.profiler.profile("optimizer scaler step"):
+                self.trainer.scaler.step(optimizer)
         elif self.trainer.amp_backend == AMPType.APEX:
             # apex amp does not yet support closures.
             # TODO: pass the closure to the step ASAP
