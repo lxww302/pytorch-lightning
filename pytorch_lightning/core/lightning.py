@@ -44,12 +44,6 @@ from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 
 
-TPU_AVAILABLE = XLADeviceUtils.tpu_device_exists()
-
-if TPU_AVAILABLE:
-    import torch_xla.core.xla_model as xm
-
-
 class LightningModule(
     ABC,
     DeviceDtypeModuleMixin,
@@ -1383,7 +1377,8 @@ class LightningModule(
             model hook don't forget to add the call to it before ``optimizer.zero_grad()`` yourself.
 
         """
-        if on_tpu:
+        if on_tpu and XLADeviceUtils.tpu_device_exists():
+            import torch_xla.core.xla_model as xm
             xm.optimizer_step(optimizer, optimizer_args={'closure': optimizer_closure, **kwargs})
         elif self.trainer.amp_backend == AMPType.NATIVE:
             # native amp does not yet support closures.
